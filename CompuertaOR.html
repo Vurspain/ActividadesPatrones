@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    
+</body>
+<script>
+    // Datos de entrenamiento (X) y etiquetas (y) AQUI VEMOS LAS ENTRADAS Y SALIDAS DEL OR CONFIGURADAS
+    const X = [[0, 0], [0, 1], [1, 0], [1, 1]];
+    const y = [0, 1, 1, 1]; // Salidas de la compuerta OR  ------------------------------- PRACTICAMENTE ESTO ES LO UNICO IMPORTANTE A MODIFICAR
+
+    // Inicialización de pesos y bias
+    let w = [Math.random(), Math.random()];
+    let b = Math.random(); //bias (b) o sesgo equivale a w3
+    const eta = 0.1; // Tasa de aprendizaje (se puede dejar en 1, en algunos casos ni siquiera se pone)
+
+    // Función de propagación hacia adelante (Se le conoce como funcion flecha (foward))
+    const forward = (x) => { 
+    const sum = w[0] * x[0] + w[1] * x[1] + b; // La neurona suma todos los wi xi
+    return sum > 0 ? 1 : 0; // es un if el ? le devuelve un 0
+    }; // Esto basicamente es la neurona
+
+    // Entrenamiento
+    for (let epoch = 0; epoch < 100; epoch++) { // Número de iteraciones itera 100 veces y encuentra una recta que divide los dos conjuntos
+    for (let i = 0; i < X.length; i++) { 
+        const y_pred = forward(X[i]); //Se manda a llamar la funcion foward 4 veces para probar con todas las entradas
+        const e = y[i] - y_pred; //Aqui estan los valores que me regresan las neuronas
+        w[0] = w[0] + eta * e * X[i][0];
+        w[1] = w[1] + eta * e * X[i][1];
+        b = b + eta * e;
+    }
+    }
+
+    console.log("Pesos ajustados:", w);
+    console.log("Bias ajustado:", b);
+
+</script>
+</html>
