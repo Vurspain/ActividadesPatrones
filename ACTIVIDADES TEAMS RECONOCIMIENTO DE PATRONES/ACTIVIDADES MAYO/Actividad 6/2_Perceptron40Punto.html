@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Perceptron 40 Puntos Fijos - Canvas</title>
+    <style>
+        body {
+            display: flex;
+            font-family: Arial, sans-serif;
+            margin: 0; /* Eliminar margen por defecto del body */
+            min-height: 100vh; /* Asegurar que el body ocupe al menos el alto de la ventana */
+        }
+        #main {
+            flex: 3;
+            text-align: center;
+            padding: 20px; /* Añadir padding para no pegar al borde */
+        }
+        #info {
+            flex: 1;
+            padding: 20px;
+            background-color: #f4f4f9;
+            border-left: 2px solid #ccc;
+            font-size: 14px;
+            line-height: 1.6;
+            overflow-y: auto; /* Añadir scroll si el contenido es muy largo */
+        }
+        canvas {
+            border: 1px solid grey;
+            background: #D3D3D3; /* Fondo gris claro */
+            margin-top: 20px;
+            width: 600px; /* Aumentar tamaño del canvas para mejor visualización */
+            height: 400px;
+            /* Los atributos width/height en la etiqueta canvas definen el espacio de dibujo */
+            /* Las propiedades width/height en CSS definen el tamaño mostrado */
+            /* Vamos a hacer que el tamaño mostrado sea igual al espacio de dibujo */
+        }
+         #canvas {
+            /* Asegurarse de que el canvas tenga el tamaño definido en CSS */
+            width: 600px; 
+            height: 400px;
+        }
+        .boton {
+            padding: 8px 15px; /* Ajustar padding del botón */
+            font-size: 16px; /* Ajustar tamaño de fuente del botón */
+            color: #fff;
+            background-color: #1883ba;
+            border-radius: 6px;
+            border: 2px solid #0016b0;
+            cursor: pointer;
+            margin-top: 15px; /* Espacio encima del botón */
+            transition: background-color 0.3s ease; /* Transición suave al pasar el ratón */
+        }
+        .boton:hover {
+            background-color: #0056b3;
+        }
+        #output {
+            margin-top: 20px; /* Espacio encima del output */
+            font-family: monospace;
+            white-space: pre-wrap; /* Conservar saltos de línea */
+            text-align: left; /* Alinear texto a la izquierda */
+            background-color: #e9e9ef; /* Fondo ligero para el output */
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            max-width: 550px; /* Limitar ancho del output */
+            margin-left: auto; /* Centrar el bloque de output */
+            margin-right: auto;
+        }
+        h2, h3 {
+            color: #333;
+        }
+        ul {
+            list-style: none; /* Eliminar viñetas por defecto */
+            padding: 0;
+        }
+        ul li {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="main">
+        <h2>ACTIVIDAD - 6 SEPARAR 40 PUNTOS PERCEPTRÓN</h2>
+        <canvas id="canvas" width="600" height="400"></canvas>
+        <br>
+        <button id="train" class="boton">Entrenar Perceptrón</button>
+        <div id="output">Pesos: Esperando entrenamiento...</div> </div>
+    <div id="info">
+        <h3>Autor: Acosta Mendez Carlos</h3>
+        <p>Este programa simula un perceptrón que aprende a separar un conjunto fijo de 40 puntos linealmente separables.</p>
+        <ul>
+            <li><strong>Puntos Verdes:</strong> Clase -1.</li>
+            <li><strong>Puntos Azules:</strong> Clase 1.</li>
+            <li><strong>Línea Roja:</strong> Límite de decisión aprendido por el perceptrón.</li>
+        </ul>
+        <p>Al presionar el botón <strong>"Entrenar Perceptrón"</strong>, el algoritmo Perceptrón ajusta iterativamente los pesos para encontrar la línea recta que separa correctamente los puntos de la Clase 1 de los puntos de la Clase -1.</p>
+        <p>El texto debajo del botón muestra los pesos finales aprendidos (`w1`, `w2` para las coordenadas X, Y, y `w0` para el sesgo) después de que el perceptrón converge (es decir, logra clasificar todos los puntos correctamente en una pasada).</p>
+        <p>El conjunto de puntos ya está precargado en el código y es, por diseño, linealmente separable.</p>
+    </div>
+
+    <script>
+        // --- Conjunto de 40 puntos linealmente separables (20 Clase 1, 20 Clase -1) ---
+        // Estos puntos fueron generados para ser separables por la línea x - y - 2 = 0
+        const fixedPointsData = [
+            // Clase 1 (x - y - 2 > 0)
+            { x: 3, y: 0, class: 1 }, { x: 4, y: 0, class: 1 }, { x: 4, y: 1, class: 1 }, { x: 5, y: 0, class: 1 },
+            { x: 5, y: 1, class: 1 }, { x: 5, y: 2, class: 1 }, { x: 6, y: 0, class: 1 }, { x: 6, y: 1, class: 1 },
+            { x: 6, y: 2, class: 1 }, { x: 6, y: 3, class: 1 }, { x: 7, y: 0, class: 1 }, { x: 7, y: 1, class: 1 },
+            { x: 7, y: 2, class: 1 }, { x: 7, y: 3, class: 1 }, { x: 7, y: 4, class: 1 }, { x: 8, y: 0, class: 1 },
+            { x: 8, y: 1, class: 1 }, { x: 8, y: 2, class: 1 }, { x: 8, y: 3, class: 1 }, { x: 8, y: 4, class: 1 },
+            // Clase -1 (x - y - 2 < 0)
+            { x: 0, y: 3, class: -1 }, { x: 0, y: 4, class: -1 }, { x: 0, y: 5, class: -1 }, { x: 1, y: 4, class: -1 },
+            { x: 1, y: 5, class: -1 }, { x: 1, y: 6, class: -1 }, { x: 2, y: 5, class: -1 }, { x: 2, y: 6, class: -1 },
+            { x: 2, y: 7, class: -1 }, { x: 3, y: 6, class: -1 }, { x: 3, y: 7, class: -1 }, { x: 3, y: 8, class: -1 },
+            { x: 4, y: 7, class: -1 }, { x: 4, y: 8, class: -1 }, { x: 4, y: 9, class: -1 }, { x: 5, y: 8, class: -1 },
+            { x: 5, y: 9, class: -1 }, { x: 5, y: 10, class: -1 }, { x: 6, y: 9, class: -1 }, { x: 6, y: 10, class: -1 }
+        ];
+
+        let canvas = document.getElementById("canvas");
+        let ctx = canvas.getContext("2d");
+
+        // Inicializar pesos y bias (w0=bias, w1=peso x, w2=peso y)
+        // En este código, weights[0] es peso x, weights[1] es peso y, weights[2] es bias
+        let weights = [Math.random() * 0.5 - 0.25, Math.random() * 0.5 - 0.25, Math.random() * 0.5 - 0.25]; // [w_x, w_y, bias]
+
+        // Definir la escala y traslación para mapear las coordenadas de los puntos al canvas
+        // Rango de datos X: aprox 0 a 8
+        // Rango de datos Y: aprox 0 a 10
+        // Tamaño del canvas: 600x400
+        // Vamos a mapear el rango de datos a un área dentro del canvas (con padding)
+        const dataXMin = 0; const dataXMax = 8;
+        const dataYMin = 0; const dataYMax = 10;
+        const canvasPadding = 40; // Espacio en los bordes del canvas
+
+        const canvasDrawWidth = canvas.width - 2 * canvasPadding;
+        const canvasDrawHeight = canvas.height - 2 * canvasPadding;
+
+        const scaleX = canvasDrawWidth / (dataXMax - dataXMin);
+        // La escala Y es negativa porque el eje Y del canvas va hacia abajo
+        const scaleY = -canvasDrawHeight / (dataYMax - dataYMin);
+
+        // Calcular los offsets para trasladar el origen de datos (dataXMin, dataYMax) a (canvasPadding, canvasPadding)
+        // o (dataXMin, dataYMin) a (canvasPadding, canvasHeight - canvasPadding)
+        const offsetX = canvasPadding - dataXMin * scaleX;
+        const offsetY = canvas.height - canvasPadding - dataYMin * (canvas.height - 2 * canvasPadding) / (dataYMax - dataYMin); // Ajuste para el origen Y
+
+
+        // Función para mapear coordenadas de datos (x, y) a coordenadas de canvas (cx, cy)
+        function dataToCanvas(x, y) {
+            const cx = x * scaleX + offsetX;
+            // El eje Y del canvas va hacia abajo, invertimos la coordenada Y del dato
+            const cy = y * scaleY + offsetY; // Usa la escala Y negativa calculada
+            return { cx: cx, cy: cy };
+        }
+
+
+        function drawPoints() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Limpiar el canvas
+            ctx.fillStyle = "#D3D3D3"; // Restaurar fondo gris claro (aunque ya está en CSS)
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+
+            fixedPointsData.forEach(p => { // Usar los puntos fijos
+                const pos = dataToCanvas(p.x, p.y); // Mapear a coordenadas de canvas
+                ctx.fillStyle = p.class === 1 ? "blue" : "green"; // Color según la clase
+                ctx.beginPath();
+                ctx.arc(pos.cx, pos.cy, 5, 0, 2 * Math.PI); // Dibujar círculo
+                ctx.fill();
+            });
+             drawLine(); // Dibujar la línea actual (inicial o después de entrenamiento)
+        }
+
+        function train() {
+             // Reinicializar pesos al entrenar si quieres ver diferentes fronteras iniciales
+             // weights = [Math.random() * 0.5 - 0.25, Math.random() * 0.5 - 0.25, Math.random() * 0.5 - 0.25];
+
+            let trained = false; // Flag para saber si hubo errores en la pasada
+            let learningRate = 0.05; // Tasa de aprendizaje
+            let iterations = 0; // Contador de iteraciones (pasadas completas por los datos)
+            const maxIterations = 1000; // Limite para evitar bucles infinitos si los datos no fueran separables
+
+            while (!trained && iterations < maxIterations) {
+                trained = true; // Suponemos que está entrenado hasta que encontremos un error
+                iterations++;
+                // Recorrer todos los puntos
+                fixedPointsData.forEach(p => {
+                    // Calcular la suma ponderada (w_x * x + w_y * y + bias)
+                    let sum = weights[0] * p.x + weights[1] * p.y + weights[2];
+                    // Calcular la predicción (-1 o 1)
+                    let prediction = sum >= 0 ? 1 : -1; // >= 0 asigna 1, < 0 asigna -1
+
+                    // Si la predicción es incorrecta
+                    if (prediction !== p.class) {
+                        // Ajustar pesos usando la regla del Perceptrón
+                        let error = p.class - prediction; // Error será 2 o -2
+                        weights[0] += learningRate * error * p.x; // Ajustar peso de x
+                        weights[1] += learningRate * error * p.y; // Ajustar peso de y
+                        weights[2] += learningRate * error; // Ajustar bias
+                        trained = false; // Hubo un error, necesitamos otra pasada
+                    }
+                });
+                 drawPoints(); // Redibujar puntos y línea en cada iteración (opcional, pero muestra el proceso)
+                 drawLine();
+            }
+
+            // Dibujar la línea final después del entrenamiento
+            drawPoints(); // Asegurarse de que los puntos estén dibujados debajo de la línea
+            drawLine();
+
+            // Mostrar los pesos finales aprendidos
+            document.getElementById("output").innerHTML = `
+Pesos finales aprendidos:<br>
+w1 (para X) = ${weights[0].toFixed(4)}<br>
+w2 (para Y) = ${weights[1].toFixed(4)}<br>
+w0 (bias)   = ${weights[2].toFixed(4)}<br>
+<br>
+Iteraciones para converger: ${iterations} (Máx: ${maxIterations})<br>
+Convergencia perfecta: ${trained ? 'Sí' : 'No (Máx iteraciones alcanzadas)'}
+`;
+        }
+
+        function drawLine() {
+            ctx.beginPath(); // Iniciar un nuevo camino de dibujo
+            ctx.strokeStyle = "red"; // Color de la línea
+            ctx.lineWidth = 2; // Grosor de la línea
+
+            // La ecuación de la línea es: weights[0]*x + weights[1]*y + weights[2] = 0
+            // Necesitamos encontrar dos puntos (x1, y1) y (x2, y2) que estén en esta línea
+            // y que crucen los bordes del área de dibujo del canvas.
+
+            // Definir los límites del área de dibujo en coordenadas de datos
+            const dataXMinDraw = dataXMin; // Usamos el rango de datos para calcular puntos en la línea
+            const dataXMaxDraw = dataXMax;
+            const dataYMinDraw = dataYMin;
+            const dataYMaxDraw = dataYMax;
+
+            const linePoints = [];
+            const epsilon = 1e-6; // Tolerancia para comparar con cero
+
+            // Calcular puntos de intersección con los 4 bordes del área de datos
+            // Borde izquierdo (x = dataXMinDraw)
+            if (Math.abs(weights[1]) > epsilon) { // Evitar división por weights[1] ~0
+                const y_intersect = (-weights[0] * dataXMinDraw - weights[2]) / weights[1];
+                // Si la intersección Y está dentro del rango de datos Y, añadimos el punto
+                if (y_intersect >= dataYMinDraw - epsilon && y_intersect <= dataYMaxDraw + epsilon) {
+                    linePoints.push({ x: dataXMinDraw, y: y_intersect });
+                }
+            }
+
+            // Borde derecho (x = dataXMaxDraw)
+            if (Math.abs(weights[1]) > epsilon) { // Evitar división por weights[1] ~0
+                const y_intersect = (-weights[0] * dataXMaxDraw - weights[2]) / weights[1];
+                 if (y_intersect >= dataYMinDraw - epsilon && y_intersect <= dataYMaxDraw + epsilon) {
+                    linePoints.push({ x: dataXMaxDraw, y: y_intersect });
+                }
+            }
+
+            // Borde inferior (y = dataYMinDraw)
+            if (Math.abs(weights[0]) > epsilon) { // Evitar división por weights[0] ~0
+                const x_intersect = (-weights[1] * dataYMinDraw - weights[2]) / weights[0];
+                // Si la intersección X está dentro del rango de datos X, añadimos el punto
+                if (x_intersect >= dataXMinDraw - epsilon && x_intersect <= dataXMaxDraw + epsilon) {
+                    linePoints.push({ x: x_intersect, y: dataYMinDraw });
+                }
+            }
+
+            // Borde superior (y = dataYMaxDraw)
+            if (Math.abs(weights[0]) > epsilon) { // Evitar división por weights[0] ~0
+                const x_intersect = (-weights[1] * dataYMaxDraw - weights[2]) / weights[0];
+                 if (x_intersect >= dataXMinDraw - epsilon && x_intersect <= dataXMaxDraw + epsilon) {
+                    linePoints.push({ x: x_intersect, y: dataYMaxDraw });
+                }
+            }
+
+            // Si weights[0] y weights[1] son ambos ~0, no podemos dibujar una línea clara.
+            // Esto podría ocurrir si el Perceptrón no ha aprendido nada útil.
+            if (linePoints.length < 2) {
+                 console.warn("No se pudieron encontrar suficientes puntos de intersección en los bordes del área de datos. La línea podría estar fuera de rango o los pesos son ~0.");
+                 // Si no encontramos 2 puntos en los bordes, no dibujamos la línea para evitar errores
+                 return;
+            }
+
+             // Eliminar duplicados y ordenar los puntos de la línea para dibujarlos correctamente
+             // (Útil si la línea pasa por una esquina)
+            linePoints.sort((a, b) => a.x - b.x); // Ordenar por X
+
+            const finalLinePoints = [];
+            if (linePoints.length > 0) {
+                finalLinePoints.push(linePoints[0]);
+                for(let i = 1; i < linePoints.length; i++) {
+                     const last = finalLinePoints[finalLinePoints.length - 1];
+                     const current = linePoints[i];
+                     // Añadir si no es casi el mismo punto que el anterior
+                     if (Math.abs(current.x - last.x) > epsilon || Math.abs(current.y - last.y) > epsilon) {
+                          finalLinePoints.push(current);
+                     }
+                }
+            }
+
+            // Ahora, dibujar la línea en el canvas usando los puntos calculados y la función de mapeo
+            if (finalLinePoints.length >= 2) {
+                 const p1 = dataToCanvas(finalLinePoints[0].x, finalLinePoints[0].y);
+                 const p2 = dataToCanvas(finalLinePoints[finalLinePoints.length - 1].x, finalLinePoints[finalLinePoints.length - 1].y);
+                 ctx.moveTo(p1.cx, p1.cy);
+                 ctx.lineTo(p2.cx, p2.cy);
+                 // Si hay más de 2 puntos únicos, podríamos querer dibujar una polilínea,
+                 // pero para una frontera de decisión lineal, con 2 puntos que crucen el área es suficiente.
+            } else {
+                 console.warn("Menos de 2 puntos únicos encontrados para dibujar la línea.");
+                 return; // No dibujar si no hay suficientes puntos
+            }
+
+
+            ctx.stroke(); // Dibujar la línea
+             ctx.closePath(); // Cerrar el camino (opcional para líneas)
+        }
+
+        // --- Inicialización ---
+        // Dibuja los puntos una vez que el DOM esté listo
+        document.addEventListener('DOMContentLoaded', (event) => {
+             console.log("DOM completamente cargado. Dibujando puntos iniciales.");
+             drawPoints(); // Dibuja los puntos al cargar la página (sin línea al inicio)
+        });
+
+
+        // Asignar la función train al evento click del botón
+        document.getElementById("train").addEventListener("click", train);
+
+        // Opcional: Dibuja los puntos sin entrenar al cargar la página
+        // La llamada a drawPoints() dentro del DOMContentLoaded ya hace esto.
+
+    </script>
+</body>
+</html>
