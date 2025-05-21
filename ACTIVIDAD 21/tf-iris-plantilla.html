@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clasificación de la Flor Iris con TensorFlow.js</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tensorflow/1.2.2/tf.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f8f9fa; color: #343a40; }
+        h1, h2 { color: #007bff; text-align: center; margin-bottom: 20px; }
+        .container { max-width: 900px; margin: 0 auto; padding: 20px; background-color: #fff; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        #output { white-space: pre-wrap; font-family: monospace; background-color: #e9ecef; padding: 15px; border-radius: 8px; margin-top: 15px; border: 1px solid #ced4da; overflow-x: auto; }
+        #progressText { margin-top: 10px; font-weight: bold; color: #28a745; text-align: center; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #dee2e6; padding: 10px; text-align: left; }
+        th { background-color: #007bff; color: white; }
+        tbody tr:nth-child(even) { background-color: #f2f2f2; }
+        .correct { color: green; font-weight: bold; }
+        .incorrect { color: red; font-weight: bold; }
+        .prediction-input-group { text-align: center; margin-top: 20px; }
+        .prediction-input-group input[type="number"] { padding: 8px; border: 1px solid #ced4da; border-radius: 4px; margin-right: 10px; width: 80px; }
+        .prediction-input-group button { padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        .prediction-input-group button:hover { background-color: #0056b3; }
+        #singlePredictionOutput { margin-top: 20px; padding: 15px; border: 1px solid #007bff; border-radius: 8px; background-color: #e6f2ff; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Clasificación de la Flor Iris</h1>
+        <p id="initialMessage">Cargando y procesando datos...</p>
+        <p id="progressText"></p>
+        <p id="output"></p>
+
+        <div class="prediction-input-group">
+            <label for="sampleIndex">Introduzca el índice de la muestra a predecir (0-149): </label>
+            <input type="number" id="sampleIndex" min="0" max="149" value="0">
+            <button onclick="predictSingleSample()">Predecir Muestra</button>
+        </div>
+        <div id="singlePredictionOutput">
+            <h3>Resultado de Predicción Individual:</h3>
+            <p id="predictedResult"></p>
+        </div>
+
+        <h2>Resultados de Predicción en Datos de Entrenamiento</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Muestra #</th>
+                    <th>Características</th>
+                    <th>Probabilidad Predicha (Setosa)</th>
+                    <th>Probabilidad Predicha (Versicolor)</th>
+                    <th>Probabilidad Predicha (Virginica)</th>
+                    <th>Clase Predicha</th>
+                    <th>Clase Real</th>
+                    <th>¿Correcto?</th>
+                </tr>
+            </thead>
+            <tbody id="predictionsTableBody">
+            </tbody>
+        </table>
+
+        <h2>Datos de la flor IRIS</h2>
+        <p>Estos son los datos completos que se utilizaron para el entrenamiento y desde donde puede seleccionar un índice para la predicción.</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Índice</th>
+                    <th>Long. Sépalo</th>
+                    <th>Ancho Sépalo</th>
+                    <th>Long. Pétalo</th>
+                    <th>Ancho Pétalo</th>
+                    <th>Clase Real</th>
+                </tr>
+            </thead>
+            <tbody id="irisDataTableBody">
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // Dataset de Iris (150 muestras, 4 características, 3 clases)
+        // Fuente: Adaptado del Iris dataset 
+        // Orden de características: sepalLength, sepalWidth, petalLength, petalWidth
+        // Orden de clases: Iris-setosa, Iris-versicolor, Iris-virginica
+        const rawIrisData = `
+5.1 3.5 1.4 0.2 Iris-setosa
+4.9 3.0 1.4 0.2 Iris-setosa
+4.7 3.2 1.3 0.2 Iris-setosa
+4.6 3.1 1.5 0.2 Iris-setosa
+5.0 3.6 1.4 0.2 Iris-setosa
+5.4 3.9 1.7 0.4 Iris-setosa
+4.6 3.4 1.4 0.3 Iris-setosa
+5.0 3.4 1.5 0.2 Iris-setosa
+4.4 2.9 1.4 0.2 Iris-setosa
+4.9 3.1 1.5 0.1 Iris-setosa
+5.4 3.7 1.5 0.2 Iris-setosa
+4.8 3.4 1.6 0.2 Iris-setosa
+4.8 3.0 1.4 0.1 Iris-setosa
+4.3 3.0 1.1 0.1 Iris-setosa
+5.8 4.0 1.2 0.2 Iris-setosa
+5.7 4.4 1.5 0.4 Iris-setosa
+5.4 3.9 1.3 0.4 Iris-setosa
+5.1 3.5 1.4 0.3 Iris-setosa
+5.7 3.8 1.7 0.3 Iris-setosa
+5.1 3.8 1.5 0.3 Iris-setosa
+5.4 3.4 1.7 0.2 Iris-setosa
+5.1 3.7 1.5 0.4 Iris-setosa
+4.6 3.6 1.0 0.2 Iris-setosa
+5.1 3.3 1.7 0.5 Iris-setosa
+4.8 3.4 1.9 0.2 Iris-setosa
+5.0 3.0 1.6 0.2 Iris-setosa
+5.0 3.4 1.6 0.4 Iris-setosa
+5.2 3.5 1.5 0.2 Iris-setosa
+5.2 3.4 1.4 0.2 Iris-setosa
+4.7 3.2 1.6 0.2 Iris-setosa
+4.8 3.1 1.6 0.2 Iris-setosa
+5.4 3.4 1.5 0.4 Iris-setosa
+5.2 4.1 1.5 0.1 Iris-setosa
+5.5 4.2 1.4 0.2 Iris-setosa
+4.9 3.1 1.5 0.2 Iris-setosa
+5.0 3.2 1.2 0.2 Iris-setosa
+5.5 3.5 1.3 0.2 Iris-setosa
+4.9 3.6 1.4 0.1 Iris-setosa
+4.4 3.0 1.3 0.2 Iris-setosa
+5.1 3.4 1.5 0.2 Iris-setosa
+5.0 3.5 1.3 0.3 Iris-setosa
+4.5 2.3 1.3 0.3 Iris-setosa
+4.4 3.2 1.3 0.2 Iris-setosa
+5.0 3.5 1.6 0.6 Iris-setosa
+5.1 3.8 1.9 0.4 Iris-setosa
+4.8 3.0 1.4 0.3 Iris-setosa
+5.1 3.8 1.6 0.2 Iris-setosa
+4.6 3.2 1.4 0.2 Iris-setosa
+5.3 3.7 1.5 0.2 Iris-setosa
+5.0 3.3 1.4 0.2 Iris-setosa
+7.0 3.2 4.7 1.4 Iris-versicolor
+6.4 3.2 4.5 1.5 Iris-versicolor
+6.9 3.1 4.9 1.5 Iris-versicolor
+5.5 2.3 4.0 1.3 Iris-versicolor
+6.5 2.8 4.6 1.5 Iris-versicolor
+5.7 2.8 4.5 1.3 Iris-versicolor
+6.3 3.3 4.7 1.6 Iris-versicolor
+4.9 2.4 3.3 1.0 Iris-versicolor
+6.6 2.9 4.6 1.3 Iris-versicolor
+5.2 2.7 3.9 1.4 Iris-versicolor
+5.0 2.0 3.5 1.0 Iris-versicolor
+5.9 3.0 4.2 1.5 Iris-versicolor
+6.0 2.2 4.0 1.0 Iris-versicolor
+6.1 2.9 4.7 1.4 Iris-versicolor
+5.6 2.9 3.6 1.3 Iris-versicolor
+6.7 3.1 4.4 1.4 Iris-versicolor
+5.6 3.0 4.5 1.5 Iris-versicolor
+5.8 2.7 4.1 1.0 Iris-versicolor
+6.2 2.2 4.5 1.5 Iris-versicolor
+5.6 2.5 3.9 1.1 Iris-versicolor
+5.9 3.2 4.8 1.8 Iris-versicolor
+6.1 2.8 4.0 1.3 Iris-versicolor
+6.3 2.5 4.9 1.5 Iris-versicolor
+6.1 2.8 4.7 1.2 Iris-versicolor
+6.4 2.9 4.3 1.3 Iris-versicolor
+6.6 3.0 4.4 1.4 Iris-versicolor
+6.8 2.8 4.8 1.4 Iris-versicolor
+6.7 3.0 5.0 1.7 Iris-versicolor
+6.0 2.9 4.5 1.5 Iris-versicolor
+5.7 2.6 3.5 1.0 Iris-versicolor
+5.5 2.4 3.8 1.1 Iris-versicolor
+5.5 2.4 3.7 1.0 Iris-versicolor
+5.8 2.7 3.9 1.2 Iris-versicolor
+6.0 2.7 5.1 1.6 Iris-versicolor
+5.4 3.0 4.5 1.5 Iris-versicolor
+6.0 3.4 4.5 1.6 Iris-versicolor
+6.7 3.1 4.7 1.5 Iris-versicolor
+6.3 2.3 4.4 1.3 Iris-versicolor
+5.6 3.0 4.1 1.3 Iris-versicolor
+5.5 2.5 4.0 1.3 Iris-versicolor
+5.5 2.6 4.4 1.2 Iris-versicolor
+6.1 3.0 4.6 1.4 Iris-versicolor
+5.8 2.6 4.0 1.2 Iris-versicolor
+5.0 2.3 3.3 1.0 Iris-versicolor
+5.6 2.7 4.2 1.3 Iris-versicolor
+5.7 3.0 4.2 1.2 Iris-versicolor
+5.7 2.9 4.2 1.3 Iris-versicolor
+6.2 2.9 4.3 1.3 Iris-versicolor
+5.1 2.5 3.0 1.1 Iris-versicolor
+5.7 2.8 4.1 1.3 Iris-versicolor
+6.3 3.3 6.0 2.5 Iris-virginica
+5.8 2.7 5.1 1.9 Iris-virginica
+7.1 3.0 5.9 2.1 Iris-virginica
+6.3 2.9 5.6 1.8 Iris-virginica
+6.5 3.0 5.8 2.2 Iris-virginica
+7.6 3.0 6.6 2.1 Iris-virginica
+4.9 2.5 4.5 1.7 Iris-virginica
+7.3 2.9 6.3 1.8 Iris-virginica
+6.7 2.5 5.8 1.8 Iris-virginica
+7.2 3.6 6.1 2.5 Iris-virginica
+6.5 3.2 5.1 2.0 Iris-virginica
+6.4 2.7 5.3 1.9 Iris-virginica
+6.8 3.0 5.5 2.1 Iris-virginica
+5.7 2.5 5.0 2.0 Iris-virginica
+5.8 2.8 5.1 2.4 Iris-virginica
+6.4 3.2 5.3 2.3 Iris-virginica
+6.5 3.0 5.5 1.8 Iris-virginica
+7.7 3.8 6.7 2.2 Iris-virginica
+7.7 2.6 6.9 2.3 Iris-virginica
+6.0 2.2 5.0 1.5 Iris-virginica
+6.9 3.2 5.7 2.3 Iris-virginica
+5.6 2.8 4.9 2.0 Iris-virginica
+7.7 2.8 6.7 2.0 Iris-virginica
+6.3 2.7 4.9 1.8 Iris-virginica
+6.7 3.3 5.7 2.1 Iris-virginica
+7.2 3.2 6.0 1.8 Iris-virginica
+6.2 2.8 4.8 1.8 Iris-virginica
+6.1 3.0 4.9 1.8 Iris-virginica
+6.4 2.8 5.6 2.1 Iris-virginica
+7.2 3.0 5.8 1.6 Iris-virginica
+7.4 2.8 6.1 1.9 Iris-virginica
+7.9 3.8 6.4 2.0 Iris-virginica
+6.4 2.8 5.6 2.2 Iris-virginica
+6.3 2.8 5.1 1.5 Iris-virginica
+6.1 2.6 5.6 1.4 Iris-virginica
+7.7 3.0 6.1 2.3 Iris-virginica
+6.3 3.4 5.6 2.4 Iris-virginica
+6.4 3.1 5.5 1.8 Iris-virginica
+6.0 3.0 4.8 1.8 Iris-virginica
+6.9 3.1 5.4 2.1 Iris-virginica
+6.7 3.1 5.6 2.4 Iris-virginica
+6.9 3.1 5.1 2.3 Iris-virginica
+5.8 2.7 5.1 1.9 Iris-virginica
+6.8 3.2 5.9 2.3 Iris-virginica
+6.7 3.3 5.7 2.5 Iris-virginica
+6.7 3.0 5.2 2.3 Iris-virginica
+6.3 2.5 5.0 1.9 Iris-virginica
+6.5 3.0 5.2 2.0 Iris-virginica
+6.2 3.4 5.4 2.3 Iris-virginica
+5.9 3.0 5.1 1.8 Iris-virginica
+        `;
+
+        const numFeatures = 4; // Long. Sépalo, Ancho Sépalo, Long. Pétalo, Ancho Pétalo
+        const numClasses = 3;  // Setosa, Versicolor, Virginica
+        const classNames = ['Iris-setosa', 'Iris-versicolor', 'Iris-virginica'];
+
+        let trainingFeatures = [];
+        let trainingLabels = []; // One-Hot Encoded
+
+        // Función para procesar los datos de Iris
+        function processIrisData(dataString) {
+            const lines = dataString.trim().split('\n').filter(line => line.trim() !== '');
+
+            for (const line of lines) {
+                const parts = line.trim().split(/\s+/);
+                const features = parts.slice(0, numFeatures).map(Number);
+                const className = parts[numFeatures]; // La última parte es el nombre de la clase
+
+                trainingFeatures.push(features);
+
+                
+                const label = Array(numClasses).fill(0);
+                const classIndex = classNames.indexOf(className);
+                if (classIndex !== -1) {
+                    label[classIndex] = 1;
+                } else {
+                    console.warn(`Clase desconocida: ${className}`);
+                }
+                trainingLabels.push(label);
+            }
+        }
+
+        // 1. Procesar los datos antes de crear los tensores
+        processIrisData(rawIrisData);
+
+        // 2. Crear tensores de TensorFlow.js
+        // tf.tensor2d(data, shape)
+        const x_train = tf.tensor2d(trainingFeatures, [trainingFeatures.length, numFeatures]);
+        const y_train = tf.tensor2d(trainingLabels, [trainingLabels.length, numClasses]);
+
+        // Mostrar los datos de Iris en la tabla inicial
+        function displayIrisDataInTable() {
+            const irisDataTableBody = document.getElementById('irisDataTableBody');
+            irisDataTableBody.innerHTML = ''; // Limpiar tabla
+            trainingFeatures.forEach((features, index) => {
+                const className = classNames[trainingLabels[index].indexOf(1)]; // Decodificar One-Hot
+                const row = `
+                    <tr>
+                        <td>${index}</td>
+                        <td>${features[0].toFixed(4)}</td>
+                        <td>${features[1].toFixed(4)}</td>
+                        <td>${features[2].toFixed(4)}</td>
+                        <td>${features[3].toFixed(4)}</td>
+                        <td>${className}</td>
+                    </tr>
+                `;
+                irisDataTableBody.innerHTML += row;
+            });
+        }
+
+        const epocas = 500; // Número de épocas de entrenamiento (ajustado para Iris)
+
+        // 3. Crear el modelo de red neuronal
+        const model = tf.sequential();
+        model.add(tf.layers.dense({
+            inputShape: [numFeatures], // 4 características de entrada
+            units: 10,                 // Primera capa oculta con 10 neuronas (ajustable)
+            activation: 'relu'         // Activación ReLU
+        }));
+        model.add(tf.layers.dense({
+            units: 5,                  // Segunda capa oculta con 5 neuronas (ajustable)
+            activation: 'relu'
+        }));
+        model.add(tf.layers.dense({
+            units: numClasses,         // 3 unidades de salida para 3 clases
+            activation: 'softmax'      // Activación Softmax para clasificación multiclase
+        }));
+
+        // 4. Compilar el modelo
+        model.compile({
+            optimizer: tf.train.adam(),       // Optimizador Adam
+            loss: 'categoricalCrossentropy',  // Pérdida para clasificación multiclase (One-Hot)
+            metrics: ['accuracy']             // Métrica para ver la precisión
+        });
+
+        // 5. Función para entrenar y mostrar progreso
+        async function trainModel() {
+            const initialMessage = document.getElementById('initialMessage');
+            const progressText = document.getElementById('progressText');
+            const outputElem = document.getElementById('output');
+
+            initialMessage.style.display = 'none';
+            outputElem.innerText = `Iniciando entrenamiento con ${x_train.shape[0]} muestras por ${epocas} épocas...\n`;
+
+            const result = await model.fit(x_train, y_train, {
+                epochs: epocas,
+                shuffle: true, // Barajar los datos en cada época
+                callbacks: {
+                    onEpochEnd: (epoch, logs) => {
+                        const currentAcc = logs.acc ? logs.acc.toFixed(4) : 'N/A';
+                        const currentLoss = logs.loss ? logs.loss.toFixed(4) : 'N/A';
+                        progressText.innerText = `Época ${epoch + 1}/${epocas} - Pérdida: ${currentLoss}, Precisión: ${currentAcc}`;
+                    },
+                    onTrainEnd: logs => {
+                        // Limpieza de tensores intermedios al finalizar el entrenamiento
+                        tf.dispose([x_train, y_train]);
+                        console.log('Tensores de entrenamiento eliminados.');
+                    }
+                }
+            });
+
+            outputElem.innerText += `\nEntrenamiento completado. Precisión final: ${result.history.acc[result.history.acc.length - 1].toFixed(4)}\n`;
+            progressText.innerText = `Entrenamiento finalizado.`;
+        }
+
+        // 6. Función para realizar y mostrar todas las predicciones en una tabla
+        async function predictAndDisplayAll() {
+            const predictionsTableBody = document.getElementById('predictionsTableBody');
+            predictionsTableBody.innerHTML = ''; // Limpiar tabla
+
+            // Usar tf.tidy para limpiar los tensores intermedios de la predicción
+            const predictions = tf.tidy(() => {
+                return model.predict(x_train);
+            });
+            const predictionsData = await predictions.array(); // Obtener array de probabilidades
+            const actualOutputs = await y_train.array();       // Obtener array de One-Hot reales
+
+            for (let i = 0; i < trainingFeatures.length; i++) {
+                const predictedProbs = predictionsData[i];
+                const predictedClassIndex = predictedProbs.indexOf(Math.max(...predictedProbs));
+                const predictedClassName = classNames[predictedClassIndex];
+
+                const actualClassIndex = actualOutputs[i].indexOf(1);
+                const actualClassName = classNames[actualClassIndex];
+                
+                const isCorrect = (predictedClassIndex === actualClassIndex);
+                const correctClass = isCorrect ? 'correct' : 'incorrect';
+
+                const row = `
+                    <tr>
+                        <td>${i}</td>
+                        <td>[${trainingFeatures[i].map(f => f.toFixed(4)).join(', ')}]</td>
+                        <td>${predictedProbs[0].toFixed(4)}</td>
+                        <td>${predictedProbs[1].toFixed(4)}</td>
+                        <td>${predictedProbs[2].toFixed(4)}</td>
+                        <td>${predictedClassName}</td>
+                        <td>${actualClassName}</td>
+                        <td class="${correctClass}">${isCorrect ? 'Sí' : 'No'}</td>
+                    </tr>
+                `;
+                predictionsTableBody.innerHTML += row;
+            }
+            predictions.dispose(); // Asegurarse de liberar el tensor de predicciones
+            console.log('Tensor de predicciones globales eliminado.');
+        }
+
+        // 7. Función para predecir una única muestra por índice
+        async function predictSingleSample() {
+            const indexInput = document.getElementById('sampleIndex');
+            const sampleIndex = parseInt(indexInput.value);
+            const predictedResultDiv = document.getElementById('predictedResult');
+
+            if (isNaN(sampleIndex) || sampleIndex < 0 || sampleIndex >= trainingFeatures.length) {
+                predictedResultDiv.innerHTML = '<span style="color: red;">Por favor, ingrese un índice válido entre 0 y 149.</span>';
+                return;
+            }
+
+            const inputSampleFeatures = trainingFeatures[sampleIndex];
+            const actualClassIndex = trainingLabels[sampleIndex].indexOf(1);
+            const actualClassName = classNames[actualClassIndex];
+
+            // Crear un tensor 2D para la predicción de una sola muestra
+            // [1, numFeatures] significa 1 fila (la muestra) y 4 columnas (las características)
+            const inputTensor = tf.tensor2d([inputSampleFeatures], [1, numFeatures]);
+
+            // Realizar la predicción
+            const prediction = tf.tidy(() => {
+                return model.predict(inputTensor);
+            });
+            const predictionData = await prediction.data(); // Obtener el array de probabilidades
+
+            const predictedClassIndex = predictionData.indexOf(Math.max(...predictionData));
+            const predictedClassName = classNames[predictedClassIndex];
+            const isCorrect = (predictedClassIndex === actualClassIndex);
+            const correctClassSpan = `<span class="${isCorrect ? 'correct' : 'incorrect'}">${isCorrect ? 'Correcto' : 'Incorrecto'}</span>`;
+
+            predictedResultDiv.innerHTML = `
+                <p><strong>Índice de Muestra:</strong> ${sampleIndex}</p>
+                <p><strong>Características:</strong> [${inputSampleFeatures.map(f => f.toFixed(4)).join(', ')}]</p>
+                <p><strong>Probabilidades Predichas:</strong></p>
+                <ul>
+                    <li>Setosa: ${predictionData[0].toFixed(4)}</li>
+                    <li>Versicolor: ${predictionData[1].toFixed(4)}</li>
+                    <li>Virginica: ${predictionData[2].toFixed(4)}</li>
+                </ul>
+                <p><strong>Clase Predicha:</strong> ${predictedClassName}</p>
+                <p><strong>Clase Real:</strong> ${actualClassName}</p>
+                <p><strong>Resultado:</strong> ${correctClassSpan}</p>
+            `;
+            
+            inputTensor.dispose(); // Liberar el tensor de entrada
+            prediction.dispose();  // Liberar el tensor de predicción
+            console.log(`Tensores para la predicción del índice ${sampleIndex} eliminados.`);
+        }
+
+        // Ejecutar el entrenamiento y las predicciones al cargar la página
+        window.onload = async function() {
+            document.getElementById('initialMessage').innerText = `Cargando ${trainingFeatures.length} muestras de datos...`;
+            displayIrisDataInTable(); // Mostrar la tabla de datos de Iris primero
+            await trainModel(); // Entrenar el modelo
+            document.getElementById('output').innerText += "\nGenerando tabla de predicciones de entrenamiento...";
+            await predictAndDisplayAll(); // Luego predecir y mostrar todos los resultados en la tabla
+            document.getElementById('output').innerText += "\nTabla de predicciones de entrenamiento generada.";
+        };
+    </script>
+</body>
+</html>
